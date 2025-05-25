@@ -1,0 +1,37 @@
+```dockerfile
+# Stage 1: Build the application
+FROM maven:3.9.6-eclipse-temurin-21 AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy Maven configuration and source code
+COPY pom.xml .
+COPY src ./src
+
+# Build the application (skip tests for faster build)
+RUN mvn clean package -DskipTests
+
+# Stage 2: Create the runtime image
+FROM eclipse-temurin:21-jre-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy the JAR file from the builder stage
+COPY --from=builder /app/target/voicebotv2-1.0.0.jar app.jar
+
+# Expose the port (Render assigns PORT dynamically)
+EXPOSE ${PORT:-8080}
+
+# Set environment variables (can be overridden in Render)
+ENV SPRING_DATA_MONGODB_HOST=mongodb \
+    SPRING_DATA_MONGODB_PORT=27017 \
+    SPRING_DATA_MONGODB_DATABASE=voicebot \
+    VAPI_API_KEY=bbe7fbcd-9a8d-46fe-9576-b54171986d2a \
+    VAPI_API_URL=https://api.vapi.ai \
+    SERVER_PORT=${PORT:-8080}
+
+# Run the application with dynamic port
+ENTRYPOINT ["java", "-Dserver.port=${PORT:-8080}", "-jar", "app.jar"]
+```
