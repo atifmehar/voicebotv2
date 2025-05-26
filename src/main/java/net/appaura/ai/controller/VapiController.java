@@ -6,7 +6,12 @@ import net.appaura.ai.service.AppointmentService;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api/vapi")
@@ -14,6 +19,10 @@ import java.util.Map;
 public class VapiController {
 
     private final AppointmentService service;
+    private static final Pattern DATE_PATTERN = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
+    private static final Pattern TIME_PATTERN = Pattern.compile("\\d{2}:\\d{2}");
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     public VapiController(AppointmentService service) {
         this.service = service;
@@ -38,12 +47,45 @@ public class VapiController {
                 String time = (String) parameters.get("time");
                 log.info("Doctor name {}, Date {}, time {} ", doctorName, date, time);
 
+                // Validate date and time formats
+                if (!isValidDate(date) || !isFutureDate(date)) {
+                    return Mono.just(Map.of(
+                            "result", "Invalid date format or date is in the past. Please use YYYY-MM-DD and ensure the date is in the future.",
+                            "isAvailable", false
+                    ));
+                }
+                if (!isValidTime(time)) {
+                    return Mono.just(Map.of(
+                            "result", "Invalid time format. Please use HH:MM in 24-hour format (e.g., 14:30).",
+                            "isAvailable", false
+                    ));
+                }
+
                 return service.checkAppointmentAvailability(doctorName, date, time)
                         .map(isAvailable -> Map.of(
                                 "result", isAvailable ? "Slot is available" : "Slot is unavailable",
                                 "isAvailable", isAvailable
                         ));
             } else if ("bookAppointment".equals(functionName)) {
+                String date = (String) parameters.get("date");
+                String time = (String) parameters.get("time");
+
+                // Validate date and time formats
+                if (!isValidDate(date) || !isFutureDate(date)) {
+                    return Mono.just(Map.of(
+                            "result", "Invalid date format or date is in the past. Please use YYYY-MM-DD and ensure the date is in the future.",
+                            "success", false,
+                            "appointmentId", ""
+                    ));
+                }
+                if (!isValidTime(time)) {
+                    return Mono.just(Map.of(
+                            "result", "Invalid time format. Please use HH:MM in 24-hour format (e.g., 14:30).",
+                            "success", false,
+                            "appointmentId", ""
+                    ));
+                }
+
                 Appointment appointment = new Appointment();
                 appointment.setPatientName((String) parameters.get("patientName"));
                 appointment.setPhone((String) parameters.get("phone"));
@@ -54,9 +96,8 @@ public class VapiController {
                     appointment.setAddress((String) parameters.get("address"));
                 }
                 appointment.setDoctorName((String) parameters.get("doctorName"));
-                appointment.setDate((String) parameters.get("date"));
-                appointment.setTime((String) parameters.get("time"));
-
+                appointment.setDate(date);
+                appointment.setTime(time);
                 if (parameters.get("fees") != null){
                     appointment.setFees(((Number) parameters.get("fees")).doubleValue());
                 }
@@ -75,4 +116,37 @@ public class VapiController {
         return Mono.just(Map.of("message", "Unhandled function call"));
     }
 
+    private boolean isValidDate(String date) {
+        if (date == null || !DATE_PATTERN.matcher(date).matches()) {
+            return false;
+        }
+        try {
+            LocalDate.parse(date, DATE_FORMATTER);
+            return true;
+        } catch (DateTimeParseException e) {
+            return false;
+        }
+    }
+
+    private boolean isFutureDate(String date) {
+        try {
+            LocalDate inputDate = LocalDate.parse(date, DATE_FORMATTER);
+            LocalDate today = LocalDate.now(); // Today is May 26, 2025
+            return inputDate.isAfter(today);
+        } catch (DateTimeParseException e) {
+            return false;
+        }
+    }
+
+    private boolean isValidTime(String time) {
+        if (time == null || !TIME_PATTERN.matcher(time).matches()) {
+            return false;
+        }
+        try {
+            LocalTime.parse(time, TIME_FORMATTER);
+            return true;
+        } catch (DateTimeParseException e) {
+            return false;
+        }
+    }
 }
