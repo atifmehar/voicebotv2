@@ -21,16 +21,22 @@ public class VapiController {
 
     @PostMapping
     public Mono<Map<String, Object>> handleVapiFunction(@RequestBody Map<String, Object> request) {
+        log.info("<<<< inside handleVapiFunction() >>>>");
         String type = (String) request.get("type");
+        log.info("Function Type: " + type);
         if ("function-call".equals(type)) {
             Map<String, Object> functionCall = (Map<String, Object>) request.get("functionCall");
+            log.info("functionCall: " + functionCall.toString());
             String functionName = (String) functionCall.get("name");
+            log.info("functionName: " + functionName);
             Map<String, Object> parameters = (Map<String, Object>) functionCall.get("parameters");
+            log.info("parameters: " + parameters.toString());
 
             if ("checkAvailability".equals(functionName)) {
                 String doctorName = (String) parameters.get("doctorName");
                 String date = (String) parameters.get("date");
                 String time = (String) parameters.get("time");
+                log.info("Doctor name {}, Date {}, time {} ", doctorName, date, time);
 
                 return service.checkAppointmentAvailability(doctorName, date, time)
                         .map(isAvailable -> Map.of(
@@ -41,13 +47,21 @@ public class VapiController {
                 Appointment appointment = new Appointment();
                 appointment.setPatientName((String) parameters.get("patientName"));
                 appointment.setPhone((String) parameters.get("phone"));
-                appointment.setEmail((String) parameters.get("email"));
-                appointment.setAddress((String) parameters.get("address"));
+                if (parameters.get("email") != null){
+                    appointment.setEmail((String) parameters.get("email"));
+                }
+                if (parameters.get("address") != null){
+                    appointment.setAddress((String) parameters.get("address"));
+                }
                 appointment.setDoctorName((String) parameters.get("doctorName"));
                 appointment.setDate((String) parameters.get("date"));
                 appointment.setTime((String) parameters.get("time"));
-                appointment.setFees(((Number) parameters.get("fees")).doubleValue());
+
+                if (parameters.get("fees") != null){
+                    appointment.setFees(((Number) parameters.get("fees")).doubleValue());
+                }
                 appointment.setIssue((String) parameters.get("issue"));
+                log.info("appointment: " + appointment.toString());
 
                 return service.saveAppointment(appointment)
                         .map(response -> Map.of(
