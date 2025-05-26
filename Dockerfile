@@ -1,4 +1,3 @@
-```dockerfile
 # Stage 1: Build the application
 FROM maven:3.9.6-eclipse-temurin-21 AS builder
 
@@ -34,4 +33,3 @@ ENV SPRING_DATA_MONGODB_HOST=mongodb \
 
 # Run the application with dynamic port
 ENTRYPOINT ["java", "-Dserver.port=${PORT:-8080}", "-jar", "app.jar"]
-```

@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: Voice Bot Application
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/voicebot}
+vapi:
+  api:
+    key: ${VAPI_API_KEY:bbe7fbcd-9a8d-46fe-9576-b54171986d2a}
+    url: ${VAPI_API_URL:https://api.vapi.ai}
+server:
+  port: ${PORT:8080}
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
