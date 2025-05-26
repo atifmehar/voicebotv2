@@ -31,7 +31,8 @@ public class VapiController {
     @PostMapping
     public Mono<Map<String, Object>> handleVapiFunction(@RequestBody Map<String, Object> request) {
         log.info("<<<< inside handleVapiFunction() >>>>");
-        String type = (String) request.get("type");
+        log.info("Full Request: " + request.toString());
+        String type = (String) request.getOrDefault("type", "function-call");
         log.info("Function Type: " + type);
         if ("function-call".equals(type)) {
             Map<String, Object> functionCall = (Map<String, Object>) request.get("functionCall");
