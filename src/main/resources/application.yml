@@ -10,3 +10,10 @@ vapi:
     url: ${VAPI_API_URL:https://api.vapi.ai}
 server:
   port: ${PORT:8080}
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
