@@ -85,6 +85,7 @@ public class VapiController {
                                         Map<String, Object> response = new HashMap<>();
                                         response.put("result", isAvailable ? "Slot is available" : "Slot is unavailable");
                                         response.put("isAvailable", isAvailable);
+                                        log.info("checkAvailability response sent: {}", response);
                                         return response;
                                     })
                                     .onErrorResume(e -> {
@@ -103,6 +104,7 @@ public class VapiController {
                         }
                         // Process bookAppointment
                         else if ("bookAppointment".equals(functionName)) {
+                            log.info("Processing bookAppointment with parameters: {}", parameters);
                             String date = (String) parameters.get("date");
                             String time = (String) parameters.get("time");
 
@@ -154,6 +156,7 @@ public class VapiController {
         }
 
         // Default response for unhandled function calls
+        log.info("Unhandled request or call terminated: {}", request);
         Map<String, Object> response = new HashMap<>();
         response.put("message", "Unhandled function call");
         return Mono.just(response);
