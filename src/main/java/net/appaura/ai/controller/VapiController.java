@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -32,90 +33,111 @@ public class VapiController {
     public Mono<Map<String, Object>> handleVapiFunction(@RequestBody Map<String, Object> request) {
         log.info("<<<< inside handleVapiFunction() >>>>");
         log.info("Full Request: " + request.toString());
-        String type = (String) request.getOrDefault("type", "function-call");
-        log.info("Function Type: " + type);
-        if ("function-call".equals(type)) {
-            Map<String, Object> functionCall = (Map<String, Object>) request.get("functionCall");
-            log.info("functionCall: " + functionCall.toString());
-            String functionName = (String) functionCall.get("name");
-            log.info("functionName: " + functionName);
-            Map<String, Object> parameters = (Map<String, Object>) functionCall.get("parameters");
-            log.info("parameters: " + parameters.toString());
 
-            if ("checkAvailability".equals(functionName)) {
-                String doctorName = (String) parameters.get("doctorName");
-                String date = (String) parameters.get("date");
-                String time = (String) parameters.get("time");
-                log.info("Doctor name {}, Date {}, time {} ", doctorName, date, time);
+        // Check if the request contains a "message" key with "tool-calls" type
+        if (request.containsKey("message")) {
+            Map<String, Object> message = (Map<String, Object>) request.get("message");
+            String type = (String) message.getOrDefault("type", "");
+            log.info("Message Type: " + type);
 
-                // Validate date and time formats
-                if (!isValidDate(date) || !isFutureDate(date)) {
-                    return Mono.just(Map.of(
-                            "result", "Invalid date format or date is in the past. Please use YYYY-MM-DD and ensure the date is in the future.",
-                            "isAvailable", false
-                    ));
-                }
-                if (!isValidTime(time)) {
-                    return Mono.just(Map.of(
-                            "result", "Invalid time format. Please use HH:MM in 24-hour format (e.g., 14:30).",
-                            "isAvailable", false
-                    ));
-                }
+            if ("tool-calls".equals(type)) {
+                // Extract toolCalls list
+                List<Map<String, Object>> toolCalls = (List<Map<String, Object>>) message.get("toolCalls");
+                if (toolCalls != null && !toolCalls.isEmpty()) {
+                    // For simplicity, process the first tool call (you can loop if expecting multiple)
+                    Map<String, Object> toolCall = toolCalls.get(0);
+                    String toolType = (String) toolCall.get("type");
+                    log.info("Tool Type: " + toolType);
 
-                return service.checkAppointmentAvailability(doctorName, date, time)
-                        .map(isAvailable -> Map.of(
-                                "result", isAvailable ? "Slot is available" : "Slot is unavailable",
-                                "isAvailable", isAvailable
-                        ));
-            } else if ("bookAppointment".equals(functionName)) {
-                String date = (String) parameters.get("date");
-                String time = (String) parameters.get("time");
+                    if ("function".equals(toolType)) {
+                        Map<String, Object> functionCall = (Map<String, Object>) toolCall.get("function");
+                        log.info("functionCall: " + functionCall.toString());
+                        String functionName = (String) functionCall.get("name");
+                        log.info("functionName: " + functionName);
+                        Map<String, Object> parameters = (Map<String, Object>) functionCall.get("arguments");
+                        log.info("parameters: " + parameters.toString());
 
-                // Validate date and time formats
-                if (!isValidDate(date) || !isFutureDate(date)) {
-                    return Mono.just(Map.of(
-                            "result", "Invalid date format or date is in the past. Please use YYYY-MM-DD and ensure the date is in the future.",
-                            "success", false,
-                            "appointmentId", ""
-                    ));
-                }
-                if (!isValidTime(time)) {
-                    return Mono.just(Map.of(
-                            "result", "Invalid time format. Please use HH:MM in 24-hour format (e.g., 14:30).",
-                            "success", false,
-                            "appointmentId", ""
-                    ));
-                }
+                        // Process checkAvailability
+                        if ("checkAvailability".equals(functionName)) {
+                            String doctorName = (String) parameters.get("doctorName");
+                            String date = (String) parameters.get("date");
+                            String time = (String) parameters.get("time");
+                            log.info("Doctor name {}, Date {}, time {} ", doctorName, date, time);
 
-                Appointment appointment = new Appointment();
-                appointment.setPatientName((String) parameters.get("patientName"));
-                appointment.setPhone((String) parameters.get("phone"));
-                if (parameters.get("email") != null){
-                    appointment.setEmail((String) parameters.get("email"));
-                }
-                if (parameters.get("address") != null){
-                    appointment.setAddress((String) parameters.get("address"));
-                }
-                appointment.setDoctorName((String) parameters.get("doctorName"));
-                appointment.setDate(date);
-                appointment.setTime(time);
-                if (parameters.get("fees") != null){
-                    appointment.setFees(((Number) parameters.get("fees")).doubleValue());
-                }
-                appointment.setIssue((String) parameters.get("issue"));
-                log.info("appointment: " + appointment.toString());
+                            // Validate date and time formats
+                            if (!isValidDate(date) || !isFutureDate(date)) {
+                                return Mono.just(Map.of(
+                                        "result", "Invalid date format or date is in the past. Please use YYYY-MM-DD and ensure the date is in the future.",
+                                        "isAvailable", false
+                                ));
+                            }
+                            if (!isValidTime(time)) {
+                                return Mono.just(Map.of(
+                                        "result", "Invalid time format. Please use HH:MM in 24-hour format (e.g., 14:30).",
+                                        "isAvailable", false
+                                ));
+                            }
 
-                return service.saveAppointment(appointment)
-                        .map(response -> Map.of(
-                                "result", response.getMessage(),
-                                "success", response.isSuccess(),
-                                "appointmentId", response.isSuccess() ? response.getAppointment().getId() : ""
-                        ));
+                            return service.checkAppointmentAvailability(doctorName, date, time)
+                                    .map(isAvailable -> Map.of(
+                                            "result", isAvailable ? "Slot is available" : "Slot is unavailable",
+                                            "isAvailable", isAvailable
+                                    ));
+                        }
+                        // Process bookAppointment
+                        else if ("bookAppointment".equals(functionName)) {
+                            String date = (String) parameters.get("date");
+                            String time = (String) parameters.get("time");
+
+                            // Validate date and time formats
+                            if (!isValidDate(date) || !isFutureDate(date)) {
+                                return Mono.just(Map.of(
+                                        "result", "Invalid date format or date is in the past. Please use YYYY-MM-DD and ensure the date is in the future.",
+                                        "success", false,
+                                        "appointmentId", ""
+                                ));
+                            }
+                            if (!isValidTime(time)) {
+                                return Mono.just(Map.of(
+                                        "result", "Invalid time format. Please use HH:MM in 24-hour format (e.g., 14:30).",
+                                        "success", false,
+                                        "appointmentId", ""
+                                ));
+                            }
+
+                            Appointment appointment = new Appointment();
+                            appointment.setPatientName((String) parameters.get("patientName"));
+                            appointment.setPhone((String) parameters.get("phone"));
+                            if (parameters.get("email") != null) {
+                                appointment.setEmail((String) parameters.get("email"));
+                            }
+                            if (parameters.get("address") != null) {
+                                appointment.setAddress((String) parameters.get("address"));
+                            }
+                            appointment.setDoctorName((String) parameters.get("doctorName"));
+                            appointment.setDate(date);
+                            appointment.setTime(time);
+                            if (parameters.get("fees") != null) {
+                                appointment.setFees(((Number) parameters.get("fees")).doubleValue());
+                            }
+                            appointment.setIssue((String) parameters.get("issue"));
+                            log.info("appointment: " + appointment.toString());
+
+                            return service.saveAppointment(appointment)
+                                    .map(response -> Map.of(
+                                            "result", response.getMessage(),
+                                            "success", response.isSuccess(),
+                                            "appointmentId", response.isSuccess() ? response.getAppointment().getId() : ""
+                                    ));
+                        }
+                    }
+                }
             }
         }
 
         return Mono.just(Map.of("message", "Unhandled function call"));
     }
+
 
     private boolean isValidDate(String date) {
         if (date == null || !DATE_PATTERN.matcher(date).matches()) {
