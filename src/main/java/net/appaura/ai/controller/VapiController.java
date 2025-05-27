@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -66,23 +67,39 @@ public class VapiController {
 
                             // Validate date and time formats
                             if (!isValidDate(date) || !isFutureDate(date)) {
-                                return Mono.just(Map.of(
-                                        "result", "Invalid date format or date is in the past. Please use YYYY-MM-DD and ensure the date is in the future.",
-                                        "isAvailable", false
-                                ));
+                                Map<String, Object> response = new HashMap<>();
+                                response.put("result", "Invalid date format or date is in the past. Please use YYYY-MM-DD and ensure the date is in the future.");
+                                response.put("isAvailable", false);
+                                return Mono.just(response);
                             }
                             if (!isValidTime(time)) {
-                                return Mono.just(Map.of(
-                                        "result", "Invalid time format. Please use HH:MM in 24-hour format (e.g., 14:30).",
-                                        "isAvailable", false
-                                ));
+                                Map<String, Object> response = new HashMap<>();
+                                response.put("result", "Invalid time format. Please use HH:MM in 24-hour format (e.g., 14:30).");
+                                response.put("isAvailable", false);
+                                return Mono.just(response);
                             }
 
                             return service.checkAppointmentAvailability(doctorName, date, time)
-                                    .map(isAvailable -> Map.of(
-                                            "result", isAvailable ? "Slot is available" : "Slot is unavailable",
-                                            "isAvailable", isAvailable
-                                    ));
+                                    .doOnNext(isAvailable -> log.info("checkAppointmentAvailability result: {}", isAvailable))
+                                    .map(isAvailable -> {
+                                        Map<String, Object> response = new HashMap<>();
+                                        response.put("result", isAvailable ? "Slot is available" : "Slot is unavailable");
+                                        response.put("isAvailable", isAvailable);
+                                        return response;
+                                    })
+                                    .onErrorResume(e -> {
+                                        log.error("Error in checkAppointmentAvailability: ", e);
+                                        Map<String, Object> response = new HashMap<>();
+                                        response.put("result", "Error checking availability: " + e.getMessage());
+                                        response.put("isAvailable", false);
+                                        return Mono.just(response);
+                                    })
+                                    .switchIfEmpty(Mono.defer(() -> {
+                                        Map<String, Object> response = new HashMap<>();
+                                        response.put("result", "No availability result returned from service");
+                                        response.put("isAvailable", false);
+                                        return Mono.just(response);
+                                    }));
                         }
                         // Process bookAppointment
                         else if ("bookAppointment".equals(functionName)) {
@@ -91,18 +108,18 @@ public class VapiController {
 
                             // Validate date and time formats
                             if (!isValidDate(date) || !isFutureDate(date)) {
-                                return Mono.just(Map.of(
-                                        "result", "Invalid date format or date is in the past. Please use YYYY-MM-DD and ensure the date is in the future.",
-                                        "success", false,
-                                        "appointmentId", ""
-                                ));
+                                Map<String, Object> response = new HashMap<>();
+                                response.put("result", "Invalid date format or date is in the past. Please use YYYY-MM-DD and ensure the date is in the future.");
+                                response.put("success", false);
+                                response.put("appointmentId", "");
+                                return Mono.just(response);
                             }
                             if (!isValidTime(time)) {
-                                return Mono.just(Map.of(
-                                        "result", "Invalid time format. Please use HH:MM in 24-hour format (e.g., 14:30).",
-                                        "success", false,
-                                        "appointmentId", ""
-                                ));
+                                Map<String, Object> response = new HashMap<>();
+                                response.put("result", "Invalid time format. Please use HH:MM in 24-hour format (e.g., 14:30).");
+                                response.put("success", false);
+                                response.put("appointmentId", "");
+                                return Mono.just(response);
                             }
 
                             Appointment appointment = new Appointment();
@@ -114,18 +131,32 @@ public class VapiController {
                             log.info("appointment: " + appointment.toString());
 
                             return service.saveAppointment(appointment)
-                                    .map(response -> Map.of(
-                                            "result", response.getMessage(),
-                                            "success", response.isSuccess(),
-                                            "appointmentId", response.isSuccess() ? response.getAppointment().getId() : ""
-                                    ));
+                                    .doOnNext(response -> log.info("saveAppointment result: {}", response))
+                                    .map(response -> {
+                                        Map<String, Object> result = new HashMap<>();
+                                        result.put("result", response.getMessage());
+                                        result.put("success", response.isSuccess());
+                                        result.put("appointmentId", response.isSuccess() ? response.getAppointment().getId() : "");
+                                        return result;
+                                    })
+                                    .onErrorResume(e -> {
+                                        log.error("Error in saveAppointment: ", e);
+                                        Map<String, Object> response = new HashMap<>();
+                                        response.put("result", "Error booking appointment: " + e.getMessage());
+                                        response.put("success", false);
+                                        response.put("appointmentId", "");
+                                        return Mono.just(response);
+                                    });
                         }
                     }
                 }
             }
         }
 
-        return Mono.just(Map.of("message", "Unhandled function call"));
+        // Default response for unhandled function calls
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Unhandled function call");
+        return Mono.just(response);
     }
 
     private boolean isValidDate(String date) {
