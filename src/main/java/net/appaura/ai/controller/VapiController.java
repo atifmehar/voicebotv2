@@ -87,7 +87,10 @@ public class VapiController {
                                         response.put("isAvailable", isAvailable);
                                         log.info("checkAvailability response sent: {}", response);
                                         return response;
-                                    }).doOnSuccess(response -> log.info("HTTP response sent successfully for checkAvailability"))
+                                    }).doOnSuccess(response -> {
+                                        String toolCallId = ((List<Map<String, Object>>) ((Map<String, Object>) request.get("message")).get("toolCalls")).get(0).get("id").toString();
+                                        log.info("HTTP response sent successfully for checkAvailability with toolCallId: {}", toolCallId);
+                                    })
                                     .onErrorResume(e -> {
                                         log.error("Error in checkAppointmentAvailability: ", e);
                                         Map<String, Object> response = new HashMap<>();
