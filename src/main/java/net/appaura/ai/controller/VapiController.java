@@ -108,18 +108,8 @@ public class VapiController {
                             Appointment appointment = new Appointment();
                             appointment.setPatientName((String) parameters.get("patientName"));
                             appointment.setPhone((String) parameters.get("phone"));
-                            if (parameters.get("email") != null) {
-                                appointment.setEmail((String) parameters.get("email"));
-                            }
-                            if (parameters.get("address") != null) {
-                                appointment.setAddress((String) parameters.get("address"));
-                            }
-                            appointment.setDoctorName((String) parameters.get("doctorName"));
                             appointment.setDate(date);
                             appointment.setTime(time);
-                            if (parameters.get("fees") != null) {
-                                appointment.setFees(((Number) parameters.get("fees")).doubleValue());
-                            }
                             appointment.setIssue((String) parameters.get("issue"));
                             log.info("appointment: " + appointment.toString());
 
@@ -138,7 +128,6 @@ public class VapiController {
         return Mono.just(Map.of("message", "Unhandled function call"));
     }
 
-
     private boolean isValidDate(String date) {
         if (date == null || !DATE_PATTERN.matcher(date).matches()) {
             return false;
@@ -154,7 +143,7 @@ public class VapiController {
     private boolean isFutureDate(String date) {
         try {
             LocalDate inputDate = LocalDate.parse(date, DATE_FORMATTER);
-            LocalDate today = LocalDate.now(); // Today is May 26, 2025
+            LocalDate today = LocalDate.now(); // Today is May 27, 2025
             return inputDate.isAfter(today);
         } catch (DateTimeParseException e) {
             return false;

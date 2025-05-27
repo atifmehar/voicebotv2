@@ -11,11 +11,8 @@ public class Appointment {
     private String id;
     private String patientName;
     private String phone;
-    private String email;
-    private String address;
     private String doctorName;
     private String date; // Format: YYYY-MM-DD
     private String time; // Format: HH:MM
-    private double fees;
     private String issue;
 }
